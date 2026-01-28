@@ -1,0 +1,8 @@
+streamlit
+pillow
+numpy
+opencv-python-headless
+python-docx
+accelerate
+torch
+transformers @ git+https://github.com/baptiste-aubertin/transformers.git@83d01ff90112ea3a0d8a6679aa9383e80f31c1db
