@@ -28,3 +28,7 @@ streamlit run app.py
 
 This repo includes a `Dockerfile` that runs Streamlit on port **7860** (as required by Spaces).
 
+**Project Members:**
+
+- Abdullah Mazhar (22i-0622)
+- Haider Niaz (22i-0481)
