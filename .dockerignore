@@ -6,6 +6,7 @@ ENV
 __pycache__
 *.pyc
 .streamlit
+.streamlit/
 .pytest_cache
 .mypy_cache
 *.ipynb
