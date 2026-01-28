@@ -20,7 +20,6 @@ def _docx_alignment(name: str) -> int:
         return WD_ALIGN_PARAGRAPH.RIGHT
     return WD_ALIGN_PARAGRAPH.LEFT
 
-
 def _normalize_lines(text: str) -> List[str]:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     # Keep empty lines (paragraph breaks), but trim right side.
