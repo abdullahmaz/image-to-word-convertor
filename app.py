@@ -79,7 +79,7 @@ def main() -> None:
 
         with st.spinner("Generating .docx..."):
             docx_bytes = build_docx(
-                title=(uploaded.name or "document").rsplit(".", 1)[0],
+                title="",
                 ocr_text=text,
                 layout=layout,
             )
