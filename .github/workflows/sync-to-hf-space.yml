@@ -20,4 +20,4 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git push https://abdullahmazhar3:${HF_TOKEN}@huggingface.co/spaces/abdullahmazhar3/image-to-word-convertor main
+          git push --force https://abdullahmazhar3:${HF_TOKEN}@huggingface.co/spaces/abdullahmazhar3/image-to-word-convertor main
