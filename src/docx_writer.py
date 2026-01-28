@@ -53,7 +53,7 @@ def _majority_alignment(values: List[str]) -> str:
     return c.most_common(1)[0][0]
 
 
-MarkdownBlockType = Literal["paragraph", "heading", "ulist", "olist", "code"]
+MarkdownBlockType = Literal["paragraph", "heading", "ulist", "olist", "code", "table"]
 
 
 @dataclass(frozen=True)
@@ -70,6 +70,7 @@ class MarkdownBlock:
     source_line_idxs: List[int]  # indices into normalized lines
     text: str = ""
     items: Optional[List[str]] = None
+    table: Optional[List[List[str]]] = None
     level: int = 0
 
 
@@ -158,12 +159,53 @@ def _parse_markdown_blocks(lines: List[str]) -> List[MarkdownBlock]:
     heading_re = re.compile(r"^(#{1,6})\s+(.*)$")
     ulist_re = re.compile(r"^\s*[-*+]\s+(.*)$")
     olist_re = re.compile(r"^\s*(\d+)\.\s+(.*)$")
+    table_sep_re = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$")
+
+    def looks_like_table_row(s: str) -> bool:
+        # At least 2 pipes and not obviously a markdown link-only line.
+        return s.count("|") >= 2
+
+    def split_table_row(s: str) -> List[str]:
+        parts = [p.strip() for p in s.strip().strip("|").split("|")]
+        # Drop empty columns created by OCR noise at ends.
+        while parts and parts[0] == "":
+            parts = parts[1:]
+        while parts and parts[-1] == "":
+            parts = parts[:-1]
+        return parts
 
     while i < n:
         ln = lines[i]
         if is_blank(ln):
             i += 1
             continue
+
+        # Markdown/pipe table block
+        if looks_like_table_row(ln):
+            start = i
+            row_lines: List[str] = []
+            idxs: List[int] = []
+            while i < n and not is_blank(lines[i]) and looks_like_table_row(lines[i]):
+                row_lines.append(lines[i])
+                idxs.append(i)
+                i += 1
+
+            # If it's too short, treat it as a normal paragraph.
+            if len(row_lines) >= 2:
+                rows: List[List[str]] = []
+                for k, raw in enumerate(row_lines):
+                    # Skip markdown separator lines like | --- | --- |
+                    if table_sep_re.match(raw.strip()):
+                        continue
+                    cells = split_table_row(raw)
+                    if cells:
+                        rows.append(cells)
+                if rows and max(len(r) for r in rows) >= 2:
+                    blocks.append(MarkdownBlock(type="table", source_line_idxs=idxs, table=rows))
+                    continue
+
+            # Fallback: not a real table.
+            i = start
 
         # Fenced code block
         if ln.strip().startswith("```"):
@@ -328,6 +370,21 @@ def build_docx(title: str, ocr_text: str, layout: LayoutAnalysis) -> bytes:
 
     for block in blocks:
         align, default_bold, default_italic = _styles_from_layout(block.source_line_idxs, text_line_to_layout, layout)
+
+        if block.type == "table" and block.table:
+            rows = block.table
+            cols = max(len(r) for r in rows)
+            table = doc.add_table(rows=len(rows), cols=cols)
+            table.style = "Table Grid"
+            for r_idx, row in enumerate(rows):
+                for c_idx in range(cols):
+                    cell = table.cell(r_idx, c_idx)
+                    cell.text = ""
+                    para = cell.paragraphs[0]
+                    para.alignment = _docx_alignment(align)
+                    txt = row[c_idx] if c_idx < len(row) else ""
+                    _add_inline_runs(para, txt, default_bold=default_bold, default_italic=default_italic)
+            continue
 
         if block.type == "heading":
             level = max(1, min(6, int(block.level or 1)))
