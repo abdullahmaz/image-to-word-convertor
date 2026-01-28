@@ -77,9 +77,6 @@ def main() -> None:
             debug_img = render_layout_debug(image, layout)
             st.image(debug_img, caption="Detected lines + inferred alignment/bold/italic", use_container_width=True)
 
-        st.subheader("Extracted text")
-        st.text_area("OCR output", value=text, height=220)
-
         with st.spinner("Generating .docx..."):
             docx_bytes = build_docx(
                 title=(uploaded.name or "document").rsplit(".", 1)[0],
