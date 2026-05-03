@@ -5,4 +5,6 @@ opencv-python-headless
 python-docx
 accelerate
 torch
+huggingface_hub>=0.24
+python-dotenv
 transformers @ git+https://github.com/baptiste-aubertin/transformers.git@83d01ff90112ea3a0d8a6679aa9383e80f31c1db

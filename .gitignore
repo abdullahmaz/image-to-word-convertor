@@ -6,3 +6,9 @@ __pycache__/
 venv/
 env/
 ENV/
+
+.env
+data/user_prefs.json
+data/user_prefs.tmp
+data/user_prefs.corrupt.json
+logs/*.jsonl

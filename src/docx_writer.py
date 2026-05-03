@@ -4,7 +4,7 @@ import io
 import re
 from collections import Counter
 from dataclasses import dataclass
-from typing import List, Literal, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -67,7 +67,7 @@ class MarkdownInline:
 @dataclass(frozen=True)
 class MarkdownBlock:
     type: MarkdownBlockType
-    source_line_idxs: List[int]  # indices into normalized lines
+    source_line_idxs: Tuple[int, ...]  # indices into normalized lines
     text: str = ""
     items: Optional[List[str]] = None
     table: Optional[List[List[str]]] = None
@@ -201,7 +201,7 @@ def _parse_markdown_blocks(lines: List[str]) -> List[MarkdownBlock]:
                     if cells:
                         rows.append(cells)
                 if rows and max(len(r) for r in rows) >= 2:
-                    blocks.append(MarkdownBlock(type="table", source_line_idxs=idxs, table=rows))
+                    blocks.append(MarkdownBlock(type="table", source_line_idxs=tuple(idxs), table=rows))
                     continue
 
             # Fallback: not a real table.
@@ -220,7 +220,7 @@ def _parse_markdown_blocks(lines: List[str]) -> List[MarkdownBlock]:
             blocks.append(
                 MarkdownBlock(
                     type="code",
-                    source_line_idxs=list(range(start, i)),
+                    source_line_idxs=tuple(range(start, i)),
                     text="\n".join(code_lines).rstrip("\n"),
                 )
             )
@@ -231,7 +231,7 @@ def _parse_markdown_blocks(lines: List[str]) -> List[MarkdownBlock]:
         if m:
             level = len(m.group(1))
             text = m.group(2).strip()
-            blocks.append(MarkdownBlock(type="heading", source_line_idxs=[i], text=text, level=level))
+            blocks.append(MarkdownBlock(type="heading", source_line_idxs=(i,), text=text, level=level))
             i += 1
             continue
 
@@ -259,7 +259,7 @@ def _parse_markdown_blocks(lines: List[str]) -> List[MarkdownBlock]:
                     items.append(m2.group(2).strip())
                     idxs.append(i)
                 i += 1
-            blocks.append(MarkdownBlock(type=list_type, source_line_idxs=idxs, items=items))
+            blocks.append(MarkdownBlock(type=list_type, source_line_idxs=tuple(idxs), items=items))
             continue
 
         # Paragraph
@@ -275,7 +275,7 @@ def _parse_markdown_blocks(lines: List[str]) -> List[MarkdownBlock]:
             para_lines.append(lines[i].strip())
             idxs.append(i)
             i += 1
-        blocks.append(MarkdownBlock(type="paragraph", source_line_idxs=idxs, text=_join_wrapped_lines(para_lines)))
+        blocks.append(MarkdownBlock(type="paragraph", source_line_idxs=tuple(idxs), text=_join_wrapped_lines(para_lines)))
 
     return blocks
 
@@ -358,15 +358,65 @@ def _add_inline_runs(paragraph, text: str, default_bold: bool, default_italic: b
             run.font.size = Pt(10)
 
 
-def build_docx(title: str, ocr_text: str, layout: LayoutAnalysis) -> bytes:
+def _apply_user_prefs(doc: Document, user_prefs: Optional[Any]) -> None:
+    """Apply font / size / spacing preferences to the document's Normal style."""
+    if user_prefs is None:
+        return
+    try:
+        normal = doc.styles["Normal"]
+        if getattr(user_prefs, "default_font", None):
+            normal.font.name = user_prefs.default_font
+        if getattr(user_prefs, "default_font_size_pt", None):
+            normal.font.size = Pt(int(user_prefs.default_font_size_pt))
+        if getattr(user_prefs, "default_line_spacing", None):
+            normal.paragraph_format.line_spacing = float(user_prefs.default_line_spacing)
+    except (KeyError, AttributeError):
+        # python-docx style table missing — proceed with library defaults.
+        pass
+
+
+def _blocks_from_structured(structured: List[Dict[str, Any]]) -> List[MarkdownBlock]:
+    """Convert agent-suggested structure into ``MarkdownBlock`` objects.
+
+    Expected entries: ``{"type": "paragraph"|"heading"|"ulist"|"olist"|
+    "code"|"table", "text": str, "level": int, "items": [str], "table":
+    [[str]], "source_line_idxs": [int]}``. Missing keys default sensibly.
+    """
+    out: List[MarkdownBlock] = []
+    for raw in structured:
+        btype: MarkdownBlockType = raw.get("type", "paragraph")  # type: ignore[assignment]
+        idxs = tuple(raw.get("source_line_idxs") or ())
+        out.append(MarkdownBlock(
+            type=btype,
+            source_line_idxs=idxs,
+            text=raw.get("text", "") or "",
+            items=raw.get("items"),
+            table=raw.get("table"),
+            level=int(raw.get("level") or 0),
+        ))
+    return out
+
+
+def build_docx(
+    title: str,
+    ocr_text: str,
+    layout: LayoutAnalysis,
+    user_prefs: Optional[Any] = None,
+    structured_blocks: Optional[List[Dict[str, Any]]] = None,
+) -> bytes:
     doc = Document()
+    _apply_user_prefs(doc, user_prefs)
 
     if title.strip():
         doc.add_heading(title.strip(), level=1)
 
     text_lines = _normalize_lines(ocr_text)
     text_line_to_layout = _line_index_to_layout_index(text_lines, layout)
-    blocks = _parse_markdown_blocks(text_lines)
+    blocks = (
+        _blocks_from_structured(structured_blocks)
+        if structured_blocks
+        else _parse_markdown_blocks(text_lines)
+    )
 
     for block in blocks:
         align, default_bold, default_italic = _styles_from_layout(block.source_line_idxs, text_line_to_layout, layout)
