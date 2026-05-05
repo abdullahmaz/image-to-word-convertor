@@ -387,44 +387,109 @@ def _run_agentic(
 
 _CUSTOM_CSS = """
 <style>
+  /* Theme tokens — light defaults, dark overrides via prefers-color-scheme.
+     We only theme our own custom components; Streamlit's native chrome
+     (sidebar, inputs, body) is left to follow the host theme. */
+  :root {
+    --hero-from: #EEF2FF;
+    --hero-via: #F5F3FF;
+    --hero-to: #FAF5FF;
+    --hero-border: #E0E7FF;
+    --hero-title: #1E1B4B;
+    --hero-sub: #475569;
+    --pill-bg: #EEF2FF;
+    --pill-fg: #4338CA;
+    --upload-bg: #FAFAFF;
+    --upload-bg-hover: #F5F3FF;
+    --upload-border: #C7D2FE;
+    --upload-border-hover: #818CF8;
+    --footer-fg: #64748B;
+    --footer-border: #E2E8F0;
+    --hero-code-bg: rgba(255, 255, 255, 0.6);
+    --hero-code-fg: #4338CA;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --hero-from: #1E1B4B;
+      --hero-via: #2E1065;
+      --hero-to: #3B0764;
+      --hero-border: #4338CA;
+      --hero-title: #E0E7FF;
+      --hero-sub: #C7D2FE;
+      --pill-bg: #312E81;
+      --pill-fg: #C7D2FE;
+      --upload-bg: rgba(99, 102, 241, 0.08);
+      --upload-bg-hover: rgba(99, 102, 241, 0.16);
+      --upload-border: #4F46E5;
+      --upload-border-hover: #818CF8;
+      --footer-fg: #94A3B8;
+      --footer-border: #1E293B;
+      --hero-code-bg: rgba(255, 255, 255, 0.1);
+      --hero-code-fg: #C7D2FE;
+    }
+  }
+
   .block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1280px; }
   h1, h2, h3 { letter-spacing: -0.015em; }
   h1 { font-weight: 700; }
+
+  /* Hero card */
   .hero {
     padding: 1.4rem 1.6rem;
     border-radius: 14px;
-    background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 60%, #FAF5FF 100%);
-    border: 1px solid #E0E7FF;
+    background: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-via) 60%, var(--hero-to) 100%);
+    border: 1px solid var(--hero-border);
     margin-bottom: 1.25rem;
   }
-  .hero-title { margin: 0 0 .35rem 0; font-size: 1.85rem; font-weight: 700; color: #1E1B4B; }
-  .hero-sub { margin: 0; color: #475569; font-size: 1rem; line-height: 1.5; }
+  .hero-title { margin: 0 0 .35rem 0; font-size: 1.85rem; font-weight: 700; color: var(--hero-title); }
+  .hero-sub { margin: 0; color: var(--hero-sub); font-size: 1rem; line-height: 1.5; }
+  .hero-sub code {
+    background: var(--hero-code-bg); color: var(--hero-code-fg);
+    padding: 1px 6px; border-radius: 4px;
+  }
   .hero-pill {
     display: inline-block; padding: 2px 10px; margin-bottom: .6rem;
-    background: #EEF2FF; color: #4338CA; border-radius: 999px;
+    background: var(--pill-bg); color: var(--pill-fg); border-radius: 999px;
     font-size: .75rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
   }
+
+  /* File uploader — restyle the dashed dropzone only, don't touch text */
   [data-testid="stFileUploader"] section {
-    border: 2px dashed #C7D2FE !important; border-radius: 12px; background: #FAFAFF;
+    border: 2px dashed var(--upload-border) !important;
+    border-radius: 12px;
+    background: var(--upload-bg) !important;
     transition: border-color .15s ease, background .15s ease;
   }
   [data-testid="stFileUploader"] section:hover {
-    border-color: #818CF8 !important; background: #F5F3FF;
+    border-color: var(--upload-border-hover) !important;
+    background: var(--upload-bg-hover) !important;
   }
-  .stButton button[kind="primary"], .stDownloadButton button {
-    border-radius: 10px; font-weight: 600;
+
+  /* Buttons — only theme primary/download (which need brand colors); leave
+     secondary buttons to the native theme so they read in both modes. */
+  .stButton button[kind="primary"] {
+    background: #6366F1 !important; color: #FFFFFF !important;
+    border: 0 !important; border-radius: 10px; font-weight: 600;
   }
-  .stDownloadButton button { background: #10B981; color: #fff; border: 0; }
-  .stDownloadButton button:hover { background: #059669; color: #fff; }
-  section[data-testid="stSidebar"] { background: #FAFAFB; }
+  .stButton button[kind="primary"]:hover { background: #4F46E5 !important; }
+  .stDownloadButton button {
+    background: #10B981 !important; color: #FFFFFF !important;
+    border: 0 !important; border-radius: 10px; font-weight: 600;
+  }
+  .stDownloadButton button:hover { background: #059669 !important; color: #FFFFFF !important; }
+
+  /* Step pill */
   .step-label {
     display: inline-block; padding: 2px 9px; margin-right: 6px;
-    background: #EEF2FF; color: #4338CA; border-radius: 6px;
+    background: var(--pill-bg); color: var(--pill-fg); border-radius: 6px;
     font-size: .72rem; font-weight: 700; letter-spacing: .03em;
   }
+
+  /* Footer */
   .footer {
-    margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid #E2E8F0;
-    color: #64748B; font-size: .82rem; text-align: center;
+    margin-top: 2.5rem; padding-top: 1rem;
+    border-top: 1px solid var(--footer-border);
+    color: var(--footer-fg); font-size: .82rem; text-align: center;
   }
 </style>
 """
