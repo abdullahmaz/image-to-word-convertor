@@ -28,6 +28,8 @@ streamlit run app.py
 
 This repo includes a `Dockerfile` that runs Streamlit on port **7860** (as required by Spaces).
 
+Live demo: https://huggingface.co/spaces/abdullahmazhar3/image-to-word
+
 ## Project Members:
 
 - Abdullah Mazhar (22i-0622)
