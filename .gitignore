@@ -12,3 +12,7 @@ data/user_prefs.json
 data/user_prefs.tmp
 data/user_prefs.corrupt.json
 logs/*.jsonl
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+branch_structure.json
